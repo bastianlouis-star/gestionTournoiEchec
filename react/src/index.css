@@ -1,0 +1,28 @@
+:root {
+  --sans: 'Segoe UI', system-ui, Roboto, sans-serif;
+  --board-light: #f4f1ea;
+  --board-dark: #e7e1d2;
+
+  font: 16px/1.5 var(--sans);
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+}

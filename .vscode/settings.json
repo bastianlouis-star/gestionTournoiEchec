@@ -1,0 +1,3 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/fastapi/.venv/Scripts/python.exe"
+}

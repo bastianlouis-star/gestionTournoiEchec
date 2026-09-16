@@ -1,0 +1,49 @@
+.app-title {
+  flex-grow: 1;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin: 0;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background-color: var(--board-light);
+  background-image:
+    linear-gradient(45deg, var(--board-dark) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--board-dark) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--board-dark) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--board-dark) 75%);
+  background-size: 64px 64px;
+  background-position: 0 0, 0 32px, 32px -32px, -32px 0px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-card h2 {
+  margin: 0 0 4px;
+  font-size: 24px;
+}
+
+.auth-card .field-error {
+  color: #b3261e;
+  font-size: 14px;
+  margin: -8px 0 0;
+}

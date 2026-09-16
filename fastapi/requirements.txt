@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+fastapi-mail
+python-dotenv
+sqlalchemy
+alembic
+psycopg2-binary
+pwdlib[argon2]
+PyJWT
