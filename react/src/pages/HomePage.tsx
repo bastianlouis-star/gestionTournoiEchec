@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import axios from "axios"
 import {
     Button, Checkbox, Chip, CircularProgress, FormControl, FormControlLabel, InputLabel, MenuItem, Pagination,
     Paper, Select, TextField,
@@ -67,24 +68,25 @@ function HomePage() {
     const query = apiParams.toString()
     const token = session.token
     useEffect(() => {
-        let cancelled = false
+        // une recherche plus récente annule la précédente (frappe rapide, changement de page, doublon du mode dev)
+        const controller = new AbortController()
         setLoading(true)
         axiosInstance.get<TournamentPage>(`/tournaments?${query}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            signal: controller.signal,
         })
             .then((response) => {
-                if (cancelled) return
                 setResult(response.data)
                 setError(null)
             })
             .catch((err) => {
-                if (cancelled) return
+                if (axios.isCancel(err)) return
                 setError(err.response?.status === 401
                     ? 'Votre session a expiré, reconnectez-vous pour utiliser ces filtres.'
                     : err.message)
             })
-            .finally(() => { if (!cancelled) setLoading(false) })
-        return () => { cancelled = true }
+            .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+        return () => controller.abort()
     }, [query, token])
 
     const hasFilters = Boolean(

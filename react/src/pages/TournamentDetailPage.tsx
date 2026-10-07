@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import axios from "axios"
 import {
     Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, MenuItem,
     Paper, Select, Table, TableBody, TableCell, TableHead, TableRow,
@@ -36,50 +37,57 @@ function TournamentDetailPage() {
     const [actionError, setActionError] = useState<string | null>(null)
     const [registering, setRegistering] = useState(false)
 
-    // tournoi + inscrits (publics) et statut d'inscription (si connecté)
-    const refresh = useCallback(() => {
+    // ronde affichée dans le classement (lue par refresh sans le recréer à chaque changement)
+    const scoreRoundRef = useRef<number | null>(null)
+
+    const loadScoreboard = useCallback((round: number | null, signal?: AbortSignal) =>
+        axiosInstance.get<Scoreboard>(`/tournaments/${id}/scoreboard`, { params: round ? { round } : undefined, signal })
+            .then((r) => setScoreboard(r.data))
+            .catch((err) => { if (!axios.isCancel(err)) setScoreboard(null) }),
+    [id])
+
+    // tout est demandé en parallèle : tournoi, inscrits, rencontres, classement, et statut d'inscription (si connecté)
+    const refresh = useCallback((signal?: AbortSignal) => {
         const requests: Promise<unknown>[] = [
-            axiosInstance.get<TournamentListItem>(`/tournaments/${id}`).then((r) => setTournament(r.data)),
-            axiosInstance.get<Player[]>(`/tournaments/${id}/players`).then((r) => setPlayers(r.data)),
-            axiosInstance.get<Match[]>(`/tournaments/${id}/matches`).then((r) => setMatches(r.data)),
+            axiosInstance.get<TournamentListItem>(`/tournaments/${id}`, { signal }).then((r) => setTournament(r.data)),
+            axiosInstance.get<Player[]>(`/tournaments/${id}/players`, { signal }).then((r) => setPlayers(r.data)),
+            axiosInstance.get<Match[]>(`/tournaments/${id}/matches`, { signal }).then((r) => setMatches(r.data)),
+            loadScoreboard(scoreRoundRef.current, signal),
         ]
         if (session.token) {
             requests.push(
                 axiosInstance.get<RegistrationStatus>(`/tournaments/${id}/registration`, {
                     headers: { Authorization: `Bearer ${session.token}` },
+                    signal,
                 })
                     .then((r) => setRegistration(r.data))
-                    .catch(() => setRegistration(null)),
+                    .catch((err) => { if (!axios.isCancel(err)) setRegistration(null) }),
             )
         } else {
             setRegistration(null)
         }
         return Promise.all(requests)
-    }, [id, session.token])
+    }, [id, session.token, loadScoreboard])
 
     useEffect(() => {
+        // annule les appels en cours si on quitte la page (ou en double en mode développement)
+        const controller = new AbortController()
         setLoading(true)
         setError(null)
-        refresh()
-            .catch((err) => setError(err.response?.status === 404 ? 'Tournoi introuvable.' : err.message))
-            .finally(() => setLoading(false))
+        refresh(controller.signal)
+            .catch((err) => {
+                if (axios.isCancel(err)) return
+                setError(err.response?.status === 404 ? 'Tournoi introuvable.' : err.message)
+            })
+            .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+        return () => controller.abort()
     }, [refresh])
 
-    // classement : se recharge quand on change de ronde affichée, ou quand un résultat / la ronde courante change
-    const status = tournament?.status
-    const currentRound = tournament?.currentRound
-    const playedCount = matches.filter((match) => match.result !== 'pas_encore_joue').length
-    useEffect(() => {
-        if (!status || status === 'en_attente_de_joueurs') {
-            setScoreboard(null)
-            return
-        }
-        let cancelled = false
-        axiosInstance.get<Scoreboard>(`/tournaments/${id}/scoreboard`, { params: scoreRound ? { round: scoreRound } : undefined })
-            .then((r) => { if (!cancelled) setScoreboard(r.data) })
-            .catch(() => { if (!cancelled) setScoreboard(null) })
-        return () => { cancelled = true }
-    }, [id, status, currentRound, scoreRound, playedCount])
+    function changeScoreRound(round: number | null) {
+        scoreRoundRef.current = round
+        setScoreRound(round)
+        loadScoreboard(round)
+    }
 
     function changeRegistration(method: 'post' | 'delete') {
         setRegistering(true)
@@ -249,7 +257,7 @@ function TournamentDetailPage() {
                     ))}
                 </ol>}
 
-            {scoreboard && <>
+            {scoreboard && !waiting && <>
                 <div className="scoreboard-header">
                     <h3 className="players-title">Classement</h3>
                     <Select
@@ -257,7 +265,7 @@ function TournamentDetailPage() {
                         value={scoreRound ?? scoreboard.round}
                         onChange={(event) => {
                             const round = Number(event.target.value)
-                            setScoreRound(round === tournament.currentRound ? null : round)
+                            changeScoreRound(round === tournament.currentRound ? null : round)
                         }}
                     >
                         {Array.from({ length: scoreboard.lastRound }, (_, index) => index + 1).map((round) => (
