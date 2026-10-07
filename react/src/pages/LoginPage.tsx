@@ -4,11 +4,12 @@ import { useActionState } from "react"
 import axiosInstance from "../api/axios-instance"
 import { jwtDecode } from "jwt-decode"
 import { useAtom } from "jotai"
+import { Navigate } from "react-router-dom"
 import sessionState from "../store/session.state"
 
 function LoginPage() {
 
-    const [_, setSession] = useAtom(sessionState)
+    const [session, setSession] = useAtom(sessionState)
 
     function submit(_, data: FormData) {
         return axiosInstance.post('/auth/login', Object.fromEntries(data.entries())).then((result) => {
@@ -17,7 +18,8 @@ function LoginPage() {
             setSession({ 
                 token: result.data.access_token,
                 role: userInfo.role,
-                id: userInfo.id 
+                id: userInfo.id,
+                username: userInfo.sub
             })
             return { errors: [], data: Object.fromEntries(data.entries()) } 
         }).catch(err => {
@@ -29,6 +31,10 @@ function LoginPage() {
         errors: [],
         data: { username: '', password: '' }
     })
+
+    if (session.token) {
+        return <Navigate to="/" replace />
+    }
 
     return <div className="auth-page">
         <Paper className="auth-card" elevation={3}>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nouveau tournoi</title>
+</head>
+<body>
+    <h1>Un nouveau tournoi est ouvert : {{ name }}</h1>
+    <p>Bonjour {{ username }}, ce tournoi correspond à votre profil.</p>
+    <ul>
+        {% if location %}<li>Lieu : {{ location }}</li>{% endif %}
+        <li>Joueurs : {{ min_players }} à {{ max_players }}</li>
+        <li>Elo : {{ elo }}</li>
+        <li>Catégories : {{ categories }}</li>
+        {% if women_only %}<li>Réservé aux femmes</li>{% endif %}
+        <li>Inscriptions jusqu'au {{ registration_end_date }}</li>
+    </ul>
+</body>
+</html>

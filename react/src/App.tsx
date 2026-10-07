@@ -3,6 +3,8 @@ import './App.css'
 import { NavLink, Route, Routes } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import HomePage from './pages/HomePage'
+import CreateTournamentPage from './pages/CreateTournamentPage'
 import { useAtom } from 'jotai'
 import sessionState from './store/session.state'
 
@@ -25,15 +27,22 @@ function App() {
             </NavLink> 
           </>
           : <>
-            <p>{session.role}</p>
+            {session.role === 'admin' && (
+              <NavLink style={{ color: 'inherit' }} to='/tournaments/new'>
+                <Button color='inherit'>Créer un tournoi</Button>
+              </NavLink>
+            )}
+            <p style={{ marginRight: 16 }}>{session.username} ({session.role})</p>
             <Button color='inherit' onClick={() => {
-              setSession({ token: null, role: null, id: null })
+              setSession({ token: null, role: null, id: null, username: null })
             }}>Se déconnecter</Button>
           </>}
         </Toolbar>
       </AppBar>
       <main>
         <Routes>
+          <Route path='/' element={<HomePage />} />
+          <Route path='/tournaments/new' element={<CreateTournamentPage />} />
           <Route path='/login' element={<LoginPage />} />
           <Route path='/register' element={<RegisterPage />} />
         </Routes>

@@ -64,7 +64,7 @@ def login(
     if user is None or not verify_password(dto.password, user.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Identifiants invalides.")
 
-    role = 'admin' if user.isAdmin else 'customer'
+    role = 'admin' if user.isAdmin else 'player'
     return {'access_token': generate_jwt(subject=user.username, role=role, id=user.id)}
 
 @router.get('/{jwt}')
