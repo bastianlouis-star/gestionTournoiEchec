@@ -31,6 +31,46 @@ export interface TournamentPage {
     pages: number
 }
 
+export interface ScoreRow {
+    rank: number
+    playerId: number
+    username: string
+    played: number
+    wins: number
+    losses: number
+    draws: number
+    score: number
+}
+
+export interface Scoreboard {
+    tournamentId: number
+    round: number
+    lastRound: number
+    rows: ScoreRow[]
+}
+
+export const formatScore = (score: number) => score.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 1 })
+
+export type MatchResult = 'pas_encore_joue' | 'blanc' | 'noir' | 'egalite'
+
+export interface Match {
+    id: number
+    tournamentId: number
+    whiteId: number
+    blackId: number
+    whiteUsername: string | null
+    blackUsername: string | null
+    round: number
+    result: MatchResult
+}
+
+export const MATCH_RESULT_LABELS: Record<MatchResult, string> = {
+    pas_encore_joue: 'À jouer',
+    blanc: '1 – 0',
+    noir: '0 – 1',
+    egalite: '½ – ½',
+}
+
 export interface Player {
     id: number
     username: string

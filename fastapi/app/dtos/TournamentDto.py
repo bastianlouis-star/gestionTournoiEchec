@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.models.match import MatchResult
 from app.models.tournament import TournamentCategory, TournamentStatus
 from app.utils.tournament_rules import check_elo_range, check_player_range, check_registration_end
 
@@ -45,6 +46,41 @@ class TournamentUpdateDto(BaseModel):
     registrationEndDate: date | None = Field(default=None)
 
     _dedupe_categories = field_validator('categories')(_unique)
+
+
+class MatchDto(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    tournamentId: int
+    whiteId: int
+    blackId: int
+    whiteUsername: str | None = None
+    blackUsername: str | None = None
+    round: int
+    result: MatchResult
+
+
+class ScoreRowDto(BaseModel):
+    rank: int
+    playerId: int
+    username: str
+    played: int
+    wins: int
+    losses: int
+    draws: int
+    score: float
+
+
+class ScoreboardDto(BaseModel):
+    tournamentId: int
+    round: int
+    lastRound: int
+    rows: list[ScoreRowDto]
+
+
+class MatchUpdateDto(BaseModel):
+    result: MatchResult
 
 
 class PlayerDto(BaseModel):

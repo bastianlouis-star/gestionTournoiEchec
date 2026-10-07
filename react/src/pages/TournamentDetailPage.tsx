@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import {
-    Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Paper,
+    Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, MenuItem,
+    Paper, Select, Table, TableBody, TableCell, TableHead, TableRow,
 } from "@mui/material"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { useAtomValue } from "jotai"
@@ -8,11 +9,11 @@ import axiosInstance from "../api/axios-instance"
 import sessionState from "../store/session.state"
 import { CATEGORY_BY_VALUE } from "../categories"
 import {
-    STATUS_COLORS, STATUS_LABELS, formatDate, formatElo,
-    type Player, type RegistrationStatus, type TournamentListItem,
+    MATCH_RESULT_LABELS, STATUS_COLORS, STATUS_LABELS, formatDate, formatElo, formatScore,
+    type Match, type MatchResult, type Player, type RegistrationStatus, type Scoreboard, type TournamentListItem,
 } from "../tournament"
 
-type AdminAction = 'start' | 'delete'
+type AdminAction = 'start' | 'delete' | 'next'
 
 const errorMessage = (err: any) => err.response?.data?.detail ?? err.message
 
@@ -25,6 +26,9 @@ function TournamentDetailPage() {
 
     const [tournament, setTournament] = useState<TournamentListItem | null>(null)
     const [players, setPlayers] = useState<Player[]>([])
+    const [matches, setMatches] = useState<Match[]>([])
+    const [scoreboard, setScoreboard] = useState<Scoreboard | null>(null)
+    const [scoreRound, setScoreRound] = useState<number | null>(null) // null = ronde courante
     const [registration, setRegistration] = useState<RegistrationStatus | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -37,6 +41,7 @@ function TournamentDetailPage() {
         const requests: Promise<unknown>[] = [
             axiosInstance.get<TournamentListItem>(`/tournaments/${id}`).then((r) => setTournament(r.data)),
             axiosInstance.get<Player[]>(`/tournaments/${id}/players`).then((r) => setPlayers(r.data)),
+            axiosInstance.get<Match[]>(`/tournaments/${id}/matches`).then((r) => setMatches(r.data)),
         ]
         if (session.token) {
             requests.push(
@@ -60,6 +65,22 @@ function TournamentDetailPage() {
             .finally(() => setLoading(false))
     }, [refresh])
 
+    // classement : se recharge quand on change de ronde affichée, ou quand un résultat / la ronde courante change
+    const status = tournament?.status
+    const currentRound = tournament?.currentRound
+    const playedCount = matches.filter((match) => match.result !== 'pas_encore_joue').length
+    useEffect(() => {
+        if (!status || status === 'en_attente_de_joueurs') {
+            setScoreboard(null)
+            return
+        }
+        let cancelled = false
+        axiosInstance.get<Scoreboard>(`/tournaments/${id}/scoreboard`, { params: scoreRound ? { round: scoreRound } : undefined })
+            .then((r) => { if (!cancelled) setScoreboard(r.data) })
+            .catch(() => { if (!cancelled) setScoreboard(null) })
+        return () => { cancelled = true }
+    }, [id, status, currentRound, scoreRound, playedCount])
+
     function changeRegistration(method: 'post' | 'delete') {
         setRegistering(true)
         setActionError(null)
@@ -69,10 +90,19 @@ function TournamentDetailPage() {
             .finally(() => setRegistering(false))
     }
 
+    function setResult(match: Match, result: MatchResult) {
+        setActionError(null)
+        axiosInstance.patch(`/tournaments/${id}/matches/${match.id}`, { result }, { headers: authHeaders })
+            .then(() => refresh())
+            .catch((err) => setActionError(errorMessage(err)))
+    }
+
     function confirmAction() {
         const request = pendingAction === 'delete'
             ? axiosInstance.delete(`/tournaments/${id}`, { headers: authHeaders }).then(() => nav('/'))
-            : axiosInstance.post(`/tournaments/${id}/start`, null, { headers: authHeaders }).then(() => refresh())
+            : axiosInstance
+                .post(`/tournaments/${id}/${pendingAction === 'next' ? 'next-round' : 'start'}`, null, { headers: authHeaders })
+                .then(() => refresh())
 
         request
             .then(() => setActionError(null))
@@ -92,6 +122,18 @@ function TournamentDetailPage() {
     }
 
     const waiting = tournament.status === 'en_attente_de_joueurs'
+    const running = tournament.status === 'en_cours'
+    const lastRound = Math.max(0, ...matches.map((match) => match.round))
+    const isLastRound = tournament.currentRound >= lastRound
+    const unplayedInCurrentRound = matches.filter(
+        (match) => match.round === tournament.currentRound && match.result === 'pas_encore_joue'
+    ).length
+
+    // rencontres regroupées par ronde
+    const matchesByRound = new Map<number, Match[]>()
+    for (const match of matches) {
+        matchesByRound.set(match.round, [...(matchesByRound.get(match.round) ?? []), match])
+    }
 
     return <div className="home-page">
         <Link to="/">← Retour aux tournois</Link>
@@ -176,6 +218,23 @@ function TournamentDetailPage() {
                         </Button>
                     </div>
                 )}
+                {running && (
+                    <div className="admin-actions">
+                        <Button
+                            variant="contained"
+                            color="success"
+                            disabled={unplayedInCurrentRound > 0}
+                            onClick={() => setPendingAction('next')}
+                        >
+                            {isLastRound ? 'Terminer le tournoi' : 'Passer à la ronde suivante'}
+                        </Button>
+                        {unplayedInCurrentRound > 0 && (
+                            <span className="admin-hint">
+                                {unplayedInCurrentRound} rencontre{unplayedInCurrentRound > 1 ? 's' : ''} à jouer dans la ronde {tournament.currentRound}
+                            </span>
+                        )}
+                    </div>
+                )}
             </>}
             {actionError && <p className="field-error">{actionError}</p>}
 
@@ -189,17 +248,101 @@ function TournamentDetailPage() {
                         </li>
                     ))}
                 </ol>}
+
+            {scoreboard && <>
+                <div className="scoreboard-header">
+                    <h3 className="players-title">Classement</h3>
+                    <Select
+                        size="small"
+                        value={scoreRound ?? scoreboard.round}
+                        onChange={(event) => {
+                            const round = Number(event.target.value)
+                            setScoreRound(round === tournament.currentRound ? null : round)
+                        }}
+                    >
+                        {Array.from({ length: scoreboard.lastRound }, (_, index) => index + 1).map((round) => (
+                            <MenuItem key={round} value={round}>
+                                Après la ronde {round}{round === tournament.currentRound ? ' (courante)' : ''}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </div>
+                <Table size="small" className="scoreboard">
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>#</TableCell>
+                            <TableCell>Joueur</TableCell>
+                            <TableCell align="right" title="Rencontres jouées">J</TableCell>
+                            <TableCell align="right" title="Victoires">V</TableCell>
+                            <TableCell align="right" title="Défaites">D</TableCell>
+                            <TableCell align="right" title="Égalités">N</TableCell>
+                            <TableCell align="right">Score</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {scoreboard.rows.map((row) => (
+                            <TableRow key={row.playerId}>
+                                <TableCell>{row.rank}</TableCell>
+                                <TableCell>{row.username}</TableCell>
+                                <TableCell align="right">{row.played}</TableCell>
+                                <TableCell align="right">{row.wins}</TableCell>
+                                <TableCell align="right">{row.losses}</TableCell>
+                                <TableCell align="right">{row.draws}</TableCell>
+                                <TableCell align="right"><strong>{formatScore(row.score)}</strong></TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </>}
+
+            {matches.length > 0 && <>
+                <h3 className="players-title">Rencontres ({matches.length})</h3>
+                {[...matchesByRound.entries()].map(([round, roundMatches]) => (
+                    <div key={round} className={`round-block${round === tournament.currentRound ? ' round-current' : ''}`}>
+                        <h4>
+                            Ronde {round}
+                            {round === tournament.currentRound && <Chip size="small" color="warning" label="En cours" sx={{ ml: 1 }} />}
+                        </h4>
+                        <ul className="match-list">
+                            {roundMatches.map((match) => (
+                                <li key={match.id}>
+                                    <span className="match-white">⬜ {match.whiteUsername ?? `#${match.whiteId}`}</span>
+                                    {isAdmin && running && match.round === tournament.currentRound
+                                        ? <Select
+                                            size="small"
+                                            className="match-result-select"
+                                            value={match.result}
+                                            onChange={(event) => setResult(match, event.target.value as MatchResult)}
+                                        >
+                                            {Object.entries(MATCH_RESULT_LABELS).map(([value, label]) => (
+                                                <MenuItem key={value} value={value}>{label}</MenuItem>
+                                            ))}
+                                        </Select>
+                                        : <span className="match-result">{MATCH_RESULT_LABELS[match.result]}</span>}
+                                    <span className="match-black">{match.blackUsername ?? `#${match.blackId}`} ⬛</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))}
+            </>}
         </Paper>
 
         <Dialog open={pendingAction !== null} onClose={() => setPendingAction(null)}>
             <DialogTitle>
-                {pendingAction === 'delete' ? 'Supprimer le tournoi ?' : 'Commencer le tournoi ?'}
+                {pendingAction === 'delete' && 'Supprimer le tournoi ?'}
+                {pendingAction === 'start' && 'Commencer le tournoi ?'}
+                {pendingAction === 'next' && (isLastRound ? 'Terminer le tournoi ?' : 'Passer à la ronde suivante ?')}
             </DialogTitle>
             <DialogContent>
                 <DialogContentText>
-                    {pendingAction === 'delete'
-                        ? `« ${tournament.name} » sera supprimé définitivement et les joueurs inscrits seront prévenus par mail.`
-                        : `« ${tournament.name} » passera en cours : les inscriptions seront closes et le tournoi ne pourra plus être modifié.`}
+                    {pendingAction === 'delete' &&
+                        `« ${tournament.name} » sera supprimé définitivement et les joueurs inscrits seront prévenus par mail.`}
+                    {pendingAction === 'start' &&
+                        `« ${tournament.name} » passera en cours : les rencontres seront générées, les inscriptions closes et le tournoi ne pourra plus être modifié.`}
+                    {pendingAction === 'next' && (isLastRound
+                        ? `La dernière ronde est terminée : « ${tournament.name} » passera au statut terminé et plus aucun résultat ne pourra être modifié.`
+                        : `La ronde ${tournament.currentRound} sera close : ses résultats ne pourront plus être modifiés.`)}
                 </DialogContentText>
             </DialogContent>
             <DialogActions>
@@ -209,7 +352,9 @@ function TournamentDetailPage() {
                     color={pendingAction === 'delete' ? 'error' : 'success'}
                     variant="contained"
                 >
-                    {pendingAction === 'delete' ? 'Supprimer' : 'Commencer'}
+                    {pendingAction === 'delete' && 'Supprimer'}
+                    {pendingAction === 'start' && 'Commencer'}
+                    {pendingAction === 'next' && (isLastRound ? 'Terminer' : 'Passer à la suite')}
                 </Button>
             </DialogActions>
         </Dialog>

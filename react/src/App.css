@@ -189,6 +189,74 @@ main {
   padding-left: 22px;
 }
 
+.scoreboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.scoreboard-header .players-title {
+  margin-right: auto;
+}
+
+.scoreboard th {
+  font-weight: 700;
+}
+
+.round-block {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #f7f5ef;
+}
+
+.round-block.round-current {
+  background: #fff6dc;
+}
+
+.round-block h4 {
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+}
+
+.match-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.match-list li {
+  display: grid;
+  grid-template-columns: 1fr 112px 1fr;
+  gap: 8px;
+  padding: 2px 0;
+  align-items: center;
+}
+
+.admin-hint {
+  align-self: center;
+  color: #5b6472;
+  font-size: 14px;
+}
+
+.match-result-select {
+  min-width: 96px;
+  font-size: 14px;
+}
+
+.match-white {
+  text-align: right;
+}
+
+.match-result {
+  text-align: center;
+  font-weight: 600;
+  color: #5b6472;
+}
+
 .player-elo {
   color: #5b6472;
 }
