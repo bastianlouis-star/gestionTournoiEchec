@@ -2,8 +2,9 @@ import enum
 from datetime import date, datetime
 
 from app.models.base import Base
-from sqlalchemy import ARRAY, CheckConstraint, DateTime, String, false, func
+from sqlalchemy import CheckConstraint, DateTime, String, false, func
 from sqlalchemy import Enum as SqlEnum
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 

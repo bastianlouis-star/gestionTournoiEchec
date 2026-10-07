@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import HomePage from './pages/HomePage'
 import CreateTournamentPage from './pages/CreateTournamentPage'
+import TournamentDetailPage from './pages/TournamentDetailPage'
 import { useAtom } from 'jotai'
 import sessionState from './store/session.state'
 
@@ -43,6 +44,7 @@ function App() {
         <Routes>
           <Route path='/' element={<HomePage />} />
           <Route path='/tournaments/new' element={<CreateTournamentPage />} />
+          <Route path='/tournaments/:id' element={<TournamentDetailPage />} />
           <Route path='/login' element={<LoginPage />} />
           <Route path='/register' element={<RegisterPage />} />
         </Routes>

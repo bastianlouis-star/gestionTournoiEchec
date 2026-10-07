@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 import app.controllers as controllers
-from app.models import user, tournament  # noqa: F401  (enregistre les modèles sur Base.metadata)
+from app.models import user, tournament, registration  # noqa: F401  (enregistre les modèles sur Base.metadata)
 from app.models.base import Base, engine
 from app.utils.application_utils import load_routers
 

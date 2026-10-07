@@ -20,6 +20,18 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(error))
 
 
+def get_optional_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
+) -> dict | None:
+    """Payload du JWT s'il est présent et valide, sinon None (pour les routes publiques)."""
+    if credentials is None:
+        return None
+    try:
+        return verify_jwt(credentials.credentials)
+    except ValueError:
+        return None
+
+
 def require_admin(user: Annotated[dict, Depends(get_current_user)]) -> dict:
     if user.get('role') != 'admin':
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès réservé aux administrateurs.")

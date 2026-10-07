@@ -12,7 +12,9 @@ T = TypeVar('T')
 class RepositoryBase(ABC, Generic[T]):
     model: type[T]
 
-    def __init__(self, session: Annotated[Session, Depends(get_session)]):
+    # scope='function' : la transaction est validée avant l'envoi de la réponse, pour qu'une requête
+    # envoyée juste après (ex. lecture après création) voie bien les données écrites
+    def __init__(self, session: Annotated[Session, Depends(get_session, scope='function')]):
         super().__init__()
         self._session = session
 

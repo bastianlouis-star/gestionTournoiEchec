@@ -26,7 +26,7 @@ def _format_elo(tournament: Tournament) -> str:
 
 
 def eligible_players(tournament: Tournament, users: list[User]) -> list[User]:
-    return [user for user in users if not user.isAdmin and respects_constraints(user, tournament)]
+    return [user for user in users if respects_constraints(user, tournament)]
 
 
 def build_notifications(tournament: Tournament, users: list[User]) -> list[dict]:
@@ -42,20 +42,38 @@ def build_notifications(tournament: Tournament, users: list[User]) -> list[dict]
         'registration_end_date': tournament.registrationEndDate.strftime('%d/%m/%Y'),
     }
     return [
-        {'email': user.email, 'body': {**body, 'username': user.username}}
+        {
+            'email': user.email,
+            'subject': f'Nouveau tournoi : {tournament.name}',
+            'template': 'tournament_created.html',
+            'body': {**body, 'username': user.username},
+        }
         for user in eligible_players(tournament, users)
     ]
 
 
-async def send_notifications(mailer: Mailer, tournament_name: str, notifications: list[dict]) -> None:
+def build_cancellation_notifications(tournament: Tournament, registered_players: list[User]) -> list[dict]:
+    """Prépare les mails prévenant les joueurs inscrits que le tournoi est supprimé."""
+    return [
+        {
+            'email': user.email,
+            'subject': f'Tournoi supprimé : {tournament.name}',
+            'template': 'tournament_deleted.html',
+            'body': {'name': tournament.name, 'username': user.username},
+        }
+        for user in registered_players
+    ]
+
+
+async def send_notifications(mailer: Mailer, notifications: list[dict]) -> None:
     """Un mail par joueur (pour ne pas exposer les adresses des autres) ; un échec n'arrête pas les suivants."""
     for notification in notifications:
         try:
             await mailer.send_message(
-                f'Nouveau tournoi : {tournament_name}',
+                notification['subject'],
                 dest=[notification['email']],
                 template_body=notification['body'],
-                template_name='tournament_created.html',
+                template_name=notification['template'],
             )
         except Exception:
             logger.exception("Échec de l'envoi du mail à %s", notification['email'])

@@ -47,6 +47,22 @@ class TournamentUpdateDto(BaseModel):
     _dedupe_categories = field_validator('categories')(_unique)
 
 
+class PlayerDto(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    username: str
+    elo: int
+
+
+class RegistrationStatusDto(BaseModel):
+    canRegister: bool
+    isRegistered: bool
+    isFull: bool
+    registeredPlayers: int
+    reasons: list[str]
+
+
 class TournamentDto(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -64,3 +80,15 @@ class TournamentDto(BaseModel):
     registrationEndDate: date
     createdAt: datetime
     updatedAt: datetime
+
+
+class TournamentListItemDto(TournamentDto):
+    registeredPlayers: int
+
+
+class TournamentPageDto(BaseModel):
+    items: list[TournamentListItemDto]
+    total: int
+    page: int
+    pageSize: int
+    pages: int

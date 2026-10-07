@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.models.base import Base  # noqa: E402
 from app.models.user import User  # noqa: E402,F401
 from app.models.tournament import Tournament  # noqa: E402,F401
+from app.models.registration import Registration  # noqa: E402,F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
